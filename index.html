@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Calcular IPPAD</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        form#formIppad {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        form#formIppad div {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button[type="submit"] {
+            background-color: #0056b3;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #004494;
+        }
+
+        #resultado {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e7f3ff;
+            border: 1px solid #bde0fe;
+            border-radius: 4px;
+            color: #3178c6;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Calcular IPPAD</h2>
+    <form id="formIppad">
+        <div>
+            <label for="nomeProduto">Nome do Produto:</label>
+            <input type="text" id="nomeProduto" required>
+        </div>
+        <div>
+            <label for="vendas">Vendas (separadas por vírgula):</label>
+            <input type="text" id="vendas" required>
+        </div>
+        <div>
+            <label for="decaimento">Decaimento (separados por vírgula):</label>
+            <input type="text" id="decaimento" required>
+        </div>
+        <div>
+            <label for="tempos">Tempos (separados por vírgula):</label>
+            <input type="text" id="tempos" required>
+        </div>
+        <div>
+            <label for="estoqueInicial">Estoque Inicial:</label>
+            <input type="number" id="estoqueInicial" required>
+        </div>
+        <div>
+            <label for="fatorDisponibilidade">Fator de Disponibilidade:</label>
+            <input type="number" step="0.01" id="fatorDisponibilidade" required>
+        </div>
+        <button type="submit">Calcular IPPAD</button>
+    </form>
+    <div id="resultado"></div>
+    <canvas id="ippadChart" style="height:400px; width:200px;"></canvas>
+
+    <script>
+        let ippadValues = []; // Armazena os valores calculados de IPPAD
+        let calculationCount = []; // Armazena a contagem de cálculos para o eixo X do gráfico
+
+        document.getElementById('formIppad').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const nomeProduto = document.getElementById('nomeProduto').value;
+            const vendas = document.getElementById('vendas').value.split(',').map(Number);
+            const decaimento = document.getElementById('decaimento').value.split(',').map(Number);
+            const tempos = document.getElementById('tempos').value.split(',').map(Number);
+            const estoqueInicial = Number(document.getElementById('estoqueInicial').value);
+            const fatorDisponibilidade = Number(document.getElementById('fatorDisponibilidade').value);
+
+            try {
+                const resultadoIPPAD = calcularIPPAD(vendas, decaimento, estoqueInicial, fatorDisponibilidade, tempos);
+                document.getElementById('resultado').innerText = nomeProduto + ' - IPPAD: ' + resultadoIPPAD.toFixed(2);
+                
+                // Adiciona o resultado ao array e atualiza o contador
+                ippadValues.push(resultadoIPPAD);
+                calculationCount.push(`${nomeProduto} (Cálculo ${calculationCount.length + 1})`);
+
+                updateChart(calculationCount, ippadValues);
+            } catch(error) {
+                console.error(error.message);
+                document.getElementById('resultado').innerText = 'Erro: ' + error.message;
+            }
+        });
+
+        function calcularIPPAD(vendas, decaimento, estoqueInicial, fatorDisponibilidade, tempos) {
+            if(vendas.length !== decaimento.length || vendas.length !== tempos.length) {
+                throw new Error('Os arrays de vendas, decaimento e tempos devem ter o mesmo tamanho.');
+            }
+
+            let somaPonderada = 0;
+            for(let i = 0; i < vendas.length; i++) {
+                somaPonderada += vendas[i] * Math.pow(decaimento[i], tempos[i]);
+            }
+            let estoque = estoqueInicial * (1 + fatorDisponibilidade);
+            let ippad = (somaPonderada / estoque) * 100;
+            return ippad;
+        }
+
+        function updateChart(labels, data) {
+            const ctx = document.getElementById('ippadChart').getContext('2d');
+            const chartExists = Chart.getChart("ippadChart"); // Verifica se o gráfico já existe
+            if (chartExists) {
+                chartExists.destroy(); // Destroi o gráfico existente para criar um novo
+            }
+            const ippadChart = new Chart(ctx, {
+                type: 'line', // Tipo de gráfico
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valor de IPPAD',
+                        data: data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        fill: false, // Não preenche abaixo da linha
+                        tension: 0.1 // Suaviza a linha
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
